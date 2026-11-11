@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Push Notification System Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --primary-hover: #3a56d4;
+            --bg: #f8fafc;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 30px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            color: #0f172a;
+        }
+
+        header p {
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card h2 {
+            font-size: 1.15rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-muted);
+        }
+
+        input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 9px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: background 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            background: #f1f5f9;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 10px;
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .status-badge.connected {
+            background: #dcfce7;
+            color: var(--success);
+        }
+
+        .notif-box {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .notif-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .notif-list {
+            list-style: none;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        .notif-item {
+            padding: 12px;
+            background: #f8fafc;
+            border-left: 4px solid var(--primary);
+            border-radius: 4px;
+            margin-bottom: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .notif-item .title {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .notif-item .meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 20px;
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Push Notification Dashboard</h1>
+        <p>Spring Boot • WebSocket (STOMP) • MongoDB</p>
+    </header>
+
+    <div class="grid">
+        <!-- 1. Connection Card -->
+        <div class="card">
+            <h2>1. User WebSocket Connection</h2>
+            <div class="form-group">
+                <label for="userId">User ID (Number):</label>
+                <input type="number" id="userId" value="101" placeholder="e.g. 101">
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="connect()">Connect</button>
+                <button class="btn-outline" onclick="disconnect()">Disconnect</button>
+            </div>
+            <div>
+                <span id="statusBadge" class="status-badge">Disconnected</span>
+            </div>
+        </div>
+
+        <!-- 2. Subscription Card -->
+        <div class="card">
+            <h2>2. Subscribe to Channel</h2>
+            <div class="form-group">
+                <label for="subChannelId">Channel ID (Number):</label>
+                <input type="number" id="subChannelId" value="1" placeholder="e.g. 1">
+            </div>
+            <div class="btn-group">
+                <button class="btn-primary" onclick="subscribeChannel()">Subscribe</button>
+                <button class="btn-outline" onclick="unsubscribeChannel()">Unsubscribe</button>
+            </div>
+            <div id="subFeedback" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);"></div>
+        </div>
+    </div>
+
+    <!-- 3. Publish Test Notification Card -->
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>3. Simulate Channel Publisher (Publish Event)</h2>
+        <div class="grid" style="margin-bottom: 0;">
+            <div class="form-group">
+                <label for="pubChannelId">Channel ID:</label>
+                <input type="number" id="pubChannelId" value="1" placeholder="Channel ID">
+            </div>
+            <div class="form-group">
+                <label for="videoTitle">Video / Notification Title:</label>
+                <input type="text" id="videoTitle" value="Spring Boot 3 + MongoDB Cloud Tutorial" placeholder="Title">
+            </div>
+        </div>
+        <div class="btn-group">
+            <button class="btn-primary" onclick="publishEvent()">Publish Video Event</button>
+            <button class="btn-outline" onclick="loadSavedNotifications()">Fetch Stored DB Notifications</button>
+        </div>
+        <div id="pubFeedback" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);"></div>
+    </div>
+
+    <!-- 4. Notifications Display Box -->
+    <div class="notif-box">
+        <div class="notif-header">
+            <h2>Live Notifications Received</h2>
+            <button class="btn-outline" style="padding: 4px 10px; font-size: 0.8rem;" onclick="clearNotifications()">Clear</button>
+        </div>
+        <ul id="notifList" class="notif-list">
+            <li class="empty-state" id="emptyNotice">No notifications received yet. Connect and publish an event to see real-time pushes!</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    let stompClient = null;
+
+    function connect() {
+        const userId = document.getElementById("userId").value.trim();
+        if (!userId) {
+            alert("Please enter a User ID first!");
+            return;
+        }
+
+        // Relative path so it works across localhost, IP, or custom domain/port
+        const socket = new SockJS("/ws");
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({ login: userId }, (frame) => {
+            const badge = document.getElementById("statusBadge");
+            badge.className = "status-badge connected";
+            badge.innerText = "Connected as User " + userId;
+
+            // Subscribe to private notification queue
+            stompClient.subscribe("/user/queue/notifications", (message) => {
+                const notif = JSON.parse(message.body);
+                showNotification(notif.message, notif.channelId, "Live WebSocket");
+            });
+        }, (error) => {
+            const badge = document.getElementById("statusBadge");
+            badge.className = "status-badge";
+            badge.innerText = "Connection failed: " + error;
+        });
+    }
+
+    function disconnect() {
+        if (stompClient !== null) {
+            stompClient.disconnect(() => {
+                const badge = document.getElementById("statusBadge");
+                badge.className = "status-badge";
+                badge.innerText = "Disconnected";
+            });
+            stompClient = null;
+        }
+    }
+
+    async function subscribeChannel() {
+        const userId = document.getElementById("userId").value.trim();
+        const channelId = document.getElementById("subChannelId").value.trim();
+
+        if (!userId || !channelId) {
+            alert("Please enter both User ID and Channel ID!");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/subscriptions/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: Number(userId), channelId: Number(channelId) })
+            });
+            const text = await res.text();
+            document.getElementById("subFeedback").innerText = text;
+        } catch (err) {
+            document.getElementById("subFeedback").innerText = "Error: " + err.message;
+        }
+    }
+
+    async function unsubscribeChannel() {
+        const userId = document.getElementById("userId").value.trim();
+        const channelId = document.getElementById("subChannelId").value.trim();
+
+        if (!userId || !channelId) {
+            alert("Please enter both User ID and Channel ID!");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/subscriptions/unsubscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ userId: Number(userId), channelId: Number(channelId) })
+            });
+            const text = await res.text();
+            document.getElementById("subFeedback").innerText = text;
+        } catch (err) {
+            document.getElementById("subFeedback").innerText = "Error: " + err.message;
+        }
+    }
+
+    async function publishEvent() {
+        const channelId = document.getElementById("pubChannelId").value.trim();
+        const videoTitle = document.getElementById("videoTitle").value.trim();
+
+        if (!channelId || !videoTitle) {
+            alert("Please enter Channel ID and Video Title!");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/notifications/publish", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    channelId: Number(channelId),
+                    videoId: "vid-" + Date.now(),
+                    videoTitle: videoTitle
+                })
+            });
+            const text = await res.text();
+            document.getElementById("pubFeedback").innerText = text;
+        } catch (err) {
+            document.getElementById("pubFeedback").innerText = "Error: " + err.message;
+        }
+    }
+
+    async function loadSavedNotifications() {
+        const userId = document.getElementById("userId").value.trim();
+        if (!userId) {
+            alert("Please enter User ID!");
+            return;
+        }
+
+        try {
+            const res = await fetch("/api/notifications/user/" + userId);
+            const list = await res.json();
+            if (list.length === 0) {
+                alert("No saved notifications found in MongoDB for User " + userId);
+                return;
+            }
+            list.forEach(item => {
+                showNotification(item.message, item.channelId, "MongoDB (" + (item.createdAt || 'saved') + ")");
+            });
+        } catch (err) {
+            alert("Error fetching from MongoDB: " + err.message);
+        }
+    }
+
+    function showNotification(message, channelId, source) {
+        const emptyNotice = document.getElementById("emptyNotice");
+        if (emptyNotice) emptyNotice.remove();
+
+        const notifList = document.getElementById("notifList");
+        const li = document.createElement("li");
+        li.className = "notif-item";
+        li.innerHTML = `
+            <div class="title">[Channel ${channelId}] ${message}</div>
+            <div class="meta">${source} • ${new Date().toLocaleTimeString()}</div>
+        `;
+        notifList.prepend(li);
+    }
+
+    function clearNotifications() {
+        const notifList = document.getElementById("notifList");
+        notifList.innerHTML = `<li class="empty-state" id="emptyNotice">No notifications.</li>`;
+    }
+</script>
+</body>
+</html>

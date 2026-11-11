@@ -18,26 +18,31 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @Configuration 
 @EnableWebSocketMessageBroker 
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
     @Override 
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("*").withSockJS();
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
+
     @Override 
     public void configureMessageBroker(MessageBrokerRegistry registry) {
         registry.setApplicationDestinationPrefixes("/app");
         registry.enableSimpleBroker("/topic", "/queue");
         registry.setUserDestinationPrefix("/user");
     }
+
     @Override 
     public void configureClientInboundChannel(ChannelRegistration registration) {
         registration.interceptors(new ChannelInterceptor() {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String userId = accessor.getFirstNativeHeader("login");
-                    if (userId != null) {
-                        Principal principal = () -> userId;
+                    if (userId != null && !userId.isBlank()) {
+                        Principal principal = () -> userId.trim();
                         accessor.setUser(principal);
                     }
                 }
